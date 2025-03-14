@@ -48,7 +48,7 @@ on:
 jobs:
   terraform-deploy:
     name: "AWS Job"
-    runs-on: [self-hosted, linux, x64, philips-code-hub, ubuntu-latest]
+    runs-on: [ubuntu-latest]
     environment: ${{ inputs.environmentName }}
     env:
       AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID }}"
