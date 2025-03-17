@@ -84,14 +84,26 @@ jobs:
       #       echo "renew_token=false" >> $GITHUB_ENV
       #     fi
         
-      - name: Renew GitHub PAT Token
+      - name: Renew GitHub PAT if needed
         run: |
           echo "Renewing GitHub PAT..."
-          NEW_PAT=$(curl -X POST -H "Authorization: token ${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}" \
-            -d '{"scopes":["admin:org","repo","workflow"],"note":"Automated Token Renewal for SSL"}' \
-            https://api.github.com/authorizations | jq -r '.token')
-          echo "New PAT generated: $NEW_PAT"
           
+          # Make the API request to generate the new PAT and capture the response
+          response=$(curl -X POST -H "Authorization: token $GH_TOKEN" \
+            -d '{"scopes":["admin:org","repo","workflow"],"note":"Automated Token Renewal for SSL"}' \
+            https://api.github.com/authorizations)
+
+          # Check if the response contains a valid token
+          NEW_PAT=$(echo "$response" | jq -r '.token')
+
+          # If the token is null or empty, print an error and exit
+          if [ "$NEW_PAT" == "null" ] || [ -z "$NEW_PAT" ]; then
+            echo "Error: Failed to generate a new PAT. Response: $response"
+            exit 1
+          fi
+
+          echo "New PAT generated: $NEW_PAT"
+
           # Save the new PAT to GitHub Secrets using the GitHub CLI
-          gh auth login --with-token <<< $NEW_PAT
+          gh auth login --with-token <<< "$NEW_PAT"
           gh secret set PIPELINE_RENEWAL_GITHUB_TOKEN --body "$NEW_PAT"
