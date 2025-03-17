@@ -10,7 +10,7 @@ jobs:
   renew_ssl_dev:
     name: 'Renew SSL Certificates'
     environment: dev
-    runs-on: [self-hosted, linux, x64, philips-code-hub, ubuntu-latest]
+    runs-on: [ubuntu-latest]
     env:
       GH_TOKEN: "${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}"
 
