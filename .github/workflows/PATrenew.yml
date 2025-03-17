@@ -10,7 +10,7 @@ jobs:
   renew_ssl_dev:
     name: 'Renew SSL Certificates'
     environment: dev
-    runs-on: [ubuntu-latest]
+    runs-on: [self-hosted, linux, x64, philips-code-hub, ubuntu-latest]
     env:
       GH_TOKEN: "${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}"
 
@@ -47,15 +47,30 @@ jobs:
       - name: Check if Token is Expiring in 15 Days
         id: check_expiration
         run: |
-          # Get the current date
+          # Get the current date in YYYY-MM-DD format
           CURRENT_DATE=$(date +'%Y-%m-%d')
 
           # Get the stored expiration date from the secret
           EXPIRATION_DATE="${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN_EXPIRATION_DATE }}"
 
+          # Check if the expiration date is empty
+          if [ -z "$EXPIRATION_DATE" ]; then
+            echo "Error: Expiration date is empty or not set!"
+            exit 1
+          fi
+
+          # Convert the human-readable expiration date to a format that 'date' can process (YYYY-MM-DD)
+          EXPIRATION_DATE_FORMATTED=$(date -d "$EXPIRATION_DATE" +'%Y-%m-%d' 2>/dev/null)
+
+          # If the conversion fails (invalid format), print an error and exit
+          if [ $? -ne 0 ]; then
+            echo "Error: Invalid expiration date format. The expected format is 'Wed, Apr 16 2025'."
+            exit 1
+          fi
+
           # Convert both dates to Unix timestamps for comparison
           CURRENT_DATE_TIMESTAMP=$(date -d $CURRENT_DATE +%s)
-          EXPIRATION_DATE_TIMESTAMP=$(date -d $EXPIRATION_DATE +%s)
+          EXPIRATION_DATE_TIMESTAMP=$(date -d $EXPIRATION_DATE_FORMATTED +%s)
 
           # Calculate the difference in days between current date and expiration date
           DIFF_DAYS=$(( ($EXPIRATION_DATE_TIMESTAMP - $CURRENT_DATE_TIMESTAMP) / 86400 ))
@@ -68,7 +83,7 @@ jobs:
             echo "Token is not expiring within 15 days. Skipping renewal."
             echo "renew_token=false" >> $GITHUB_ENV
           fi
-
+        
       - name: Renew GitHub PAT Token
         run: |
           echo "Renewing GitHub PAT..."
