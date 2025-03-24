@@ -1,10 +1,9 @@
 name: Renew PAT Token
 
-# on:
-#   schedule:
-#     - cron: '0 0 1 */1 *'  # Runs on the first day of every month
+on:
+  schedule:
+    - cron: '0 0 1 */1 *'  # Runs on the first day of every month
 
-workflow_dispatch
 
 jobs:
   renew-pat:
