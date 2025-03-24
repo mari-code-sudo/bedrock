@@ -15,19 +15,9 @@ jobs:
 
       - name: Install GitHub CLI
         run: |
-          # Fetch the latest release URL
-          LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | jq -r '.assets[] | select(.name | endswith("linux_amd64.tar.gz")).browser_download_url')
-
-          # Download the latest GitHub CLI release
-          curl -LO $LATEST_RELEASE_URL
-
-          # Extract the tarball
-          tar -xzf $(basename $LATEST_RELEASE_URL)
-
-          # Move the binary to a directory in your PATH
-          sudo mv gh_*/bin/gh /usr/local/bin/
-
-          # Verify the installation
+          curl -LO https://github.com/cli/cli/releases/latest/download/gh_2.0.0_linux_amd64.tar.gz
+          tar -xvf gh_2.0.0_linux_amd64.tar.gz
+          sudo mv gh_2.0.0_linux_amd64/bin/gh /usr/local/bin/
           gh --version
 
       - name: Authenticate with GitHub CLI
