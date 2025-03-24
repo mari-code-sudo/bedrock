@@ -1,60 +1,29 @@
-name: 'SSL Certificate Renewal Pipeline Deploy Workflow'
+name: Renew PAT Token
+
 on:
-  push:
-    branches: [ "main" ]
+  schedule:
+    - cron: '0 0 1 */1 *'
 
-  workflow_dispatch:
-
-      
 jobs:
-  renew_ssl_dev:
-    name: 'Renew SSL Certificates'
-    environment: dev
-    runs-on: [ubuntu-latest]
-    env:
-      GH_TOKEN: "${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}"
-
+  renew-pat:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      
+      - name: Generate new PAT
+        id: generate_pat
+        run: |          
+          NEW_PAT=$(curl -X POST -H "Authorization: token ${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/user/tokens \
+            -d '{"scopes":["repo"],"note":"Renewed PAT"}' | jq -r '.token')
+          echo "NEW_PAT=$NEW_PAT" >> $GITHUB_ENV
 
-      - name: Install GitHub CLI
+      - name: Update GitHub Secret
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gh
-      
-      
-        
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y certbot jq curl gh    
-     
-
-      
-      - name: Renew GitHub PAT if needed
-        run: |
-          echo "Renewing GitHub PAT..."
-          
-          # Make the API request to generate the new PAT and capture the response
-          response=$(curl -X POST -H "Authorization: token $GH_TOKEN" \
-            -d '{"scopes":["admin:org","repo","workflow"],"note":"Automated Token Renewal for SSL"}' \
-            https://api.github.com/authorizations)
-
-          # Check if the response contains a valid token
-          NEW_PAT=$(echo "$response" | jq -r '.token')
-
-          # If the token is null or empty, print an error and exit
-          if [ "$NEW_PAT" == "null" ] || [ -z "$NEW_PAT" ]; then
-            echo "Error: Failed to generate a new PAT. Response: $response"
-            exit 1
-          fi
-
-          echo "New PAT generated: $NEW_PAT"
-
-          # Save the new PAT to GitHub Secrets using the GitHub CLI
-          gh auth login --with-token <<< "$NEW_PAT"
-          gh secret set PIPELINE_RENEWAL_GITHUB_TOKEN --body "$NEW_PAT"
+          curl -X PUT -H "Authorization: token ${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/mari-code-sudo/bedrock/actions/secrets/PIPELINE_RENEWAL_GITHUB_TOKEN \
+            -d '{"encrypted_value":"'"$(echo -n $NEW_PAT | openssl enc -aes-256-cbc -a -salt -pass pass:${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }})"'"}'
