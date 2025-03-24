@@ -2,7 +2,7 @@ name: Renew PAT Token
 
 on:
   schedule:
-    - cron: '0 0 1 */1 *'
+    - cron: '0 0 1 */1 *'  # Runs on the first day of every month
 
 jobs:
   renew-pat:
@@ -12,18 +12,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+          sudo apt-add-repository https://cli.github.com/packages
+          sudo apt update
+          sudo apt install gh
+
+      - name: Authenticate with GitHub CLI
+        run: |
+          echo "${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}" | gh auth login --with-token
+
       - name: Generate new PAT
         id: generate_pat
-        run: |          
-          NEW_PAT=$(curl -X POST -H "Authorization: token ${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/user/tokens \
-            -d '{"scopes":["repo"],"note":"Renewed PAT"}' | jq -r '.token')
+        run: |
+          NEW_PAT=$(gh auth refresh -h github.com -s "repo,workflow,admin:org" -d "Automated Token Renewal for SSL" -t)
           echo "NEW_PAT=$NEW_PAT" >> $GITHUB_ENV
 
       - name: Update GitHub Secret
         run: |
-          curl -X PUT -H "Authorization: token ${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/mari-code-sudo/bedrock/actions/secrets/PIPELINE_RENEWAL_GITHUB_TOKEN \
-            -d '{"encrypted_value":"'"$(echo -n $NEW_PAT | openssl enc -aes-256-cbc -a -salt -pass pass:${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }})"'"}'
+          echo "${{ env.NEW_PAT }}" | gh secret set PIPELINE_RENEWAL_GITHUB_TOKEN --body -
