@@ -1,4 +1,4 @@
-name: Renew PAT Token
+name: RenewPATToken
 
 on:
   schedule:
@@ -15,9 +15,16 @@ jobs:
 
       - name: Install GitHub CLI
         run: |
+          # Download the latest GitHub CLI release
           curl -LO https://github.com/cli/cli/releases/latest/download/gh_2.0.0_linux_amd64.tar.gz
-          tar -xvf gh_2.0.0_linux_amd64.tar.gz
+
+          # Extract the tarball
+          tar -xzf gh_2.0.0_linux_amd64.tar.gz
+
+          # Move the binary to a directory in your PATH
           sudo mv gh_2.0.0_linux_amd64/bin/gh /usr/local/bin/
+
+          # Verify the installation
           gh --version
 
       - name: Authenticate with GitHub CLI
