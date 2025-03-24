@@ -13,31 +13,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install GitHub CLI
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Authenticate with GitHub App
+        id: auth
         run: |
-          # Fetch the latest release URL
-          LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | jq -r '.assets[] | select(.name | endswith("linux_amd64.tar.gz")).browser_download_url')
+          APP_ID=1189838
+          INSTALLATION_ID=Iv23lifodvXbyMlxqQyD
+          PRIVATE_KEY=$(echo "${{ secrets.GITHUB_APP_PRIVATE_KEY }}" | base64 -d)
 
-          # Download the latest GitHub CLI release
-          curl -LO $LATEST_RELEASE_URL
+          JWT=$(ruby -r openssl -r base64 -r json -e 'payload = { iat: Time.now.to_i, exp: Time.now.to_i + 600, iss: ENV["APP_ID"] }; key = OpenSSL::PKey::RSA.new(ENV["PRIVATE_KEY"]); token = JWT.encode(payload, key, "RS256"); puts token')
+          ACCESS_TOKEN=$(curl -s -X POST -H "Authorization: Bearer $JWT" -H "Accept: application/vnd.github.v3+json" https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens | jq -r .token)
 
-          # Extract the tarball
-          tar -xzf $(basename $LATEST_RELEASE_URL)
-
-          # Move the binary to a directory in your PATH
-          sudo mv gh_*/bin/gh /usr/local/bin/
-
-          # Verify the installation
-          gh --version
-
-      - name: Authenticate with GitHub CLI
-        run: |
-          echo "${{ secrets.PIPELINE_RENEWAL_GITHUB_TOKEN }}" | gh auth login --with-token
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
 
       - name: Generate new PAT
         id: generate_pat
         run: |
-          NEW_PAT=$(gh auth refresh -h github.com -s "repo,workflow,admin:org" -d "Automated Token Renewal for SSL" -t)
+          NEW_PAT=$(curl -s -X POST -H "Authorization: token $ACCESS_TOKEN" -H "Accept: application/vnd.github.v3+json" https://api.github.com/user/tokens -d '{"scopes":["repo","workflow","admin:org"],"note":"Automated Token Renewal for SSL"}' | jq -r '.token')
           echo "NEW_PAT=$NEW_PAT" >> $GITHUB_ENV
 
       - name: Update GitHub Secret
