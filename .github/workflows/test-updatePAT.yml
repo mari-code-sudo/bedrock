@@ -1,4 +1,4 @@
-name: Renew PAT Token
+name: Renew PAT Token test
 
 on:
   schedule:
