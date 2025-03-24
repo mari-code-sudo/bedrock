@@ -22,6 +22,7 @@ jobs:
           APP_ID=1189838
           INSTALLATION_ID=Iv23lifodvXbyMlxqQyD
           PRIVATE_KEY=$(echo "${{ secrets.PAT_APP_PRIVATE_KEY }}" | base64 -d)
+          echo =$PRIVATE_KEY
 
           JWT=$(ruby -r openssl -r base64 -r json -e 'payload = { iat: Time.now.to_i, exp: Time.now.to_i + 600, iss: ENV["APP_ID"] }; key = OpenSSL::PKey::RSA.new(ENV["PRIVATE_KEY"]); token = JWT.encode(payload, key, "RS256"); puts token')
           ACCESS_TOKEN=$(curl -s -X POST -H "Authorization: Bearer $JWT" -H "Accept: application/vnd.github.v3+json" https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens | jq -r .token)
